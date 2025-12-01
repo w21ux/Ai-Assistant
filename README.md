@@ -52,4 +52,11 @@ Servo control library for managing the animatronics.
 **!!CHANGE THE PINS ARRANGEMENTS IF NEEDED!!**
 
 **TYPE YOUR OWN API KEYS AND THE FOLLOWING IN THE API SECTION**
+LINE 93:
+# ------------------- AI Assistant -------------------
+OPENROUTER_API_KEY = "YOUR_API_KEY"
+OPENROUTER_URL = "YOUR_URL"
+MODEL_NAME = "YOUR_API_MODEL_NAME"
+
+HERE!
 
