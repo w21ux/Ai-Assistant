@@ -51,5 +51,5 @@ Servo control library for managing the animatronics.
 
 **!!CHANGE THE PINS ARRANGEMENTS IF NEEDED!!**
 
-
+**TYPE YOUR OWN API KEYS AND THE FOLLOWING IN THE API SECTION**
 
