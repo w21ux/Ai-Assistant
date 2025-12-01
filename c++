@@ -35,7 +35,6 @@ void animateServos() {
     if (millis() - lastServoMove > 150) {
         lastServoMove = millis();
         int currentAngle = headServo.read();
-       
         if (currentAngle >= 100) headDirection = -1;
         else if (currentAngle <= 80) headDirection = 1;
         headServo.write(currentAngle + (headDirection * 5));
@@ -46,8 +45,6 @@ void animateServos() {
 
 void setup() {
     Serial.begin(921600); // Faster baud rate
-
-
     // --- Servo Setup ---
     headServo.attach(HEAD_PIN);
     tailServo.attach(TAIL_PIN);
@@ -63,8 +60,6 @@ void setup() {
     cfg.bits_per_sample = BITS_PER_SAMPLE;
     cfg.channels = CHANNELS;
     cfg.i2s_format = I2S_STD_FORMAT;
-
-
     i2sStream.begin(cfg);
 }
 
@@ -85,8 +80,6 @@ void processAudioData() {
    
     if (audioDataToReceive > 0) {
         size_t bytesRead = Serial.readBytes(audioBuffer, AUDIO_CHUNK_SIZE);
-
-
         if (bytesRead > 0) {
             i2sStream.write(audioBuffer, bytesRead);
             audioDataToReceive -= bytesRead;
@@ -135,7 +128,6 @@ void loop() {
                                      ((uint32_t)size_bytes[1] << 16) |
                                      ((uint32_t)size_bytes[2] << 8) |
                                      (uint32_t)size_bytes[3];
-
                 // Skip WAV header
                 byte header_dummy[44];
                 if (audioDataToReceive >= 44) {
