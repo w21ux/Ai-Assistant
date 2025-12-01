@@ -1,0 +1,194 @@
+import serial
+import time
+import speech_recognition as sr
+import requests
+from gtts import gTTS
+import os
+import tempfile
+from pydub import AudioSegment
+import io  # For in-memory audio
+
+
+# ------------------- Serial Setup -------------------
+SERIAL_PORT = "COM8"   # Change if needed
+BAUD_RATE = 921600     # Faster, matches Arduino
+
+
+try:
+   ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=0.1)
+   time.sleep(2)
+   print(f"Connected to {SERIAL_PORT}")
+except serial.SerialException as e:
+   print(f"ERROR: Could not open serial port {SERIAL_PORT}: {e}")
+   ser = None  # Set ser to None if connection fails
+
+
+
+
+
+
+
+
+
+# ------------------- Servo Command -------------------
+def send_servo_angles(head, tail):
+   """Send head/tail angles in $HHHTTT format"""
+   if ser and ser.isOpen():
+       data = f"${head:03}{tail:03}"
+       ser.write(data.encode())
+
+# ------------------- Text-to-Speech & Audio Streaming 
+def speak(text):
+   """Convert text to speech, stream raw PCM data to ESP32, and animate servos."""
+   if not ser or not ser.isOpen():
+       print("ERROR: Serial connection is closed. Cannot speak via speaker.")
+       return
+
+   tmp_mp3_path = None
+   try:
+       print("AI speaking... (streaming audio to ESP32)")
+
+       # 1. Generate MP3
+       tts = gTTS(text=text, lang='en', slow=False)
+       with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
+           tts.write_to_fp(tmp_file)
+           tmp_mp3_path = tmp_file.name
+
+       # 2. Convert MP3 → WAV (11025 Hz, mono, 16-bit)
+       audio = AudioSegment.from_mp3(tmp_mp3_path)
+       audio = audio.set_frame_rate(11025).set_channels(1).set_sample_width(2)
+
+      
+
+
+
+
+
+
+
+ # 3. Export full WAV (with header)
+       wav_file_in_memory = io.BytesIO()
+       audio.export(wav_file_in_memory, format="wav")
+       full_wav_data = wav_file_in_memory.getvalue()
+       data_size = len(full_wav_data)
+
+       # 4. Protocol: send marker + size
+       ser.write(b'$S')
+       ser.write(data_size.to_bytes(4, byteorder='big'))
+
+       print(f"Streaming {data_size} bytes of WAV data...")
+
+       # 5. Stream in 64-byte chunks
+       chunk_size = 64
+       bytes_sent = 0
+       while bytes_sent < data_size:
+           chunk = full_wav_data[bytes_sent:bytes_sent + chunk_size]
+           ser.write(chunk)
+           bytes_sent += len(chunk)
+           time.sleep(0.002)  # Tiny delay to prevent buffer overflow
+
+       print("Audio stream finished.")
+       time.sleep(0.2)  # Allow ESP32 to reset servos
+
+   except Exception as e:
+       print(f"TTS/Streaming Error: {e}")
+  finally:
+       if tmp_mp3_path and os.path.exists(tmp_mp3_path):
+           os.unlink(tmp_mp3_path)
+
+
+
+
+
+
+
+
+
+
+# ------------------- Speech Recognition -------------------
+recognizer = sr.Recognizer()
+mic = sr.Microphone()
+with mic as source:
+   recognizer.adjust_for_ambient_noise(source, duration=1)
+
+# ------------------- AI Assistant -------------------
+OPENROUTER_API_KEY = "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"
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+MODEL_NAME = "deepseek/deepseek-chat"
+
+
+def ask_ai(prompt):
+   headers = {
+       "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+       "Content-Type": "application/json"
+   }
+
+   data = {
+       "model": MODEL_NAME,
+       "messages": [{"role": "user", "content": prompt}],
+       "max_tokens": 90
+   }
+   try:
+       r = requests.post(OPENROUTER_URL, json=data, headers=headers)
+       r.raise_for_status()
+       reply = r.json()["choices"][0]["message"]["content"]
+       print("AI:", reply)
+       return reply
+   except Exception as e:
+       print("AI Error:", e)
+       return "I cannot respond right now."
+
+
+
+
+
+
+
+# ------------------- Main Loop -------------------
+if __name__ == "__main__":
+   print("System ready. Waiting for commands...")
+   try:
+       while True:
+           try:
+               with mic as source:
+                   print("🎤 Listening...")
+                   audio = recognizer.listen(source, timeout=5, phrase_time_limit=5)            
+ command = recognizer.recognize_google(audio).lower()
+               print("You said:", command)
+
+               # ---- Servo Actions ----
+               if "hi hello" in command:
+                   for _ in range(3):
+                       send_servo_angles(90, 150)
+                       time.sleep(0.5)
+                       send_servo_angles(90, 90)
+                       time.sleep(0.5)
+               elif "turn to your left" in command:
+                   send_servo_angles(60, 90)
+               elif "turn to your right" in command:
+                   send_servo_angles(120, 90)
+               elif "get back to your position" in command:
+                   send_servo_angles(90, 90)
+
+               # ---- AI Assistant ----
+               if command:
+                   ai_response = ask_ai(command)
+                   speak(ai_response)
+           except sr.UnknownValueError:
+               print("❌ Could not understand audio")
+          
+
+
+
+
+
+
+ except sr.RequestError as e:
+               print(f"⚠️ Speech Recognition API unavailable: {e}")
+           except sr.WaitTimeoutError:
+               continue
+           except Exception as e:
+               print(f"Unexpected error: {e}")
+               time.sleep(1)
+          except KeyboardInterrupt:
+       print("Shutting down...")
