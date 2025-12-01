@@ -55,7 +55,9 @@ Servo control library for managing the animatronics.
 LINE 93:
 # ------------------- AI Assistant -------------------
 OPENROUTER_API_KEY = "YOUR_API_KEY"
+
 OPENROUTER_URL = "YOUR_URL"
+
 MODEL_NAME = "YOUR_API_MODEL_NAME"
 
 HERE!
