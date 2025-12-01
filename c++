@@ -2,41 +2,28 @@
 #include <ESP32Servo.h>
 #include "AudioTools.h"
 
-
 // ------------------- Servo Setup -------------------
 Servo headServo;
 Servo tailServo;
 const int HEAD_PIN = 14;
 const int TAIL_PIN = 18;
 
-
 // ------------------- I2S/MAX98357A Setup -------------------
 #define I2S_BCLK_PIN  27
 #define I2S_WS_PIN    26 // LRC (Word Select)
 #define I2S_DATA_PIN  25 // DIN
 
-
-
-
-
-
-
-
 const int SAMPLE_RATE = 11025;   // Reduced for smooth UART streaming
 const int BITS_PER_SAMPLE = 16;
 const int CHANNELS = 1; // Mono
-
 
 // Audio objects
 I2SStream i2sStream;
 I2SConfig cfg;
 
-
 // ------------------- Serial Protocol -------------------
 enum State { WAITING_FOR_COMMAND, RECEIVING_SERVO, RECEIVING_AUDIO_SIZE, RECEIVING_AUDIO_DATA };
 State currentState = WAITING_FOR_COMMAND;
-
-
 uint32_t audioDataToReceive = 0;
 const size_t AUDIO_CHUNK_SIZE = 64; // Match Python chunk size
 
@@ -44,8 +31,6 @@ const size_t AUDIO_CHUNK_SIZE = 64; // Match Python chunk size
 // ------------------- Servo Animation -------------------
 unsigned long lastServoMove = 0;
 int headDirection = 1;
-
-
 void animateServos() {
     if (millis() - lastServoMove > 150) {
         lastServoMove = millis();
@@ -53,14 +38,6 @@ void animateServos() {
        
         if (currentAngle >= 100) headDirection = -1;
         else if (currentAngle <= 80) headDirection = 1;
-
-
-
-
-
-
-
-
         headServo.write(currentAngle + (headDirection * 5));
         tailServo.write(180 - headServo.read());
     }
@@ -90,15 +67,6 @@ void setup() {
 
     i2sStream.begin(cfg);
 }
-
-
-
-
-
-
-
-
-
 
 
 void processServoCommand() {
@@ -135,11 +103,6 @@ void processAudioData() {
     }
 }
 
-
-
-
-
-
 void loop() {
     if (currentState == RECEIVING_AUDIO_DATA) {
         animateServos();
@@ -172,13 +135,6 @@ void loop() {
                                      ((uint32_t)size_bytes[1] << 16) |
                                      ((uint32_t)size_bytes[2] << 8) |
                                      (uint32_t)size_bytes[3];
-
-
-
-
-
-
-
 
                 // Skip WAV header
                 byte header_dummy[44];
